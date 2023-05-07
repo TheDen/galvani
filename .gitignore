@@ -1,6 +1,7 @@
 bin/
 dist/
 icon.iconset/
+*.dmg
 
 # Binaries for programs and plugins
 *.exe
