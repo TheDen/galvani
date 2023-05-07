@@ -9,7 +9,7 @@ import (
 	"github.com/caseymrm/menuet"
 )
 
-const appVersion = "0.0.3"
+const appVersion = "0.0.4"
 const boltIconOutline = "bolt.png"
 const boltIconFilled = "bolt-filled.png"
 
