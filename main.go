@@ -14,7 +14,6 @@ const boltIconOutline = "bolt.png"
 const boltIconFilled = "bolt-filled.png"
 
 func runCommand(str string) error {
-	//	script := fmt.Sprintf("set the clipboard to \"%s\"", str)
 	cmd := exec.Command("/usr/bin/osascript", "-e", fmt.Sprintf("do shell script \"%s\" with prompt \"Galvani is trying to update battery prefrences\" with administrator privileges", str))
 	err := cmd.Run()
 	return err
@@ -47,7 +46,6 @@ func setIconState() string {
 	return boltIconOutline
 }
 
-// osascript -e 'do shell script "sudo pmset -a lowpowermode 1" with administrator privileges'
 func menuItems() []menuet.MenuItem {
 	alwaysState := menuet.Defaults().Boolean("alwaysState")
 	neverState := menuet.Defaults().Boolean("neverState")
@@ -99,9 +97,7 @@ func menuItems() []menuet.MenuItem {
 		Text: fmt.Sprintf("🔌 Only on Power"),
 		Clicked: func() {
 			runCommand("sudo pmset -a lowpowermode 0; sudo pmset -c lowpowermode 1")
-			menuet.Defaults().SetBoolean("alwaysState", false)
-			menuet.Defaults().SetBoolean("neverState", false)
-			menuet.Defaults().SetBoolean("batteryOnlyState", false)
+			setMenuStatesFalse()
 			menuet.Defaults().SetBoolean("powerOnlyState", true)
 		},
 		State: powerOnlyState,
