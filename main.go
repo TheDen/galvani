@@ -9,6 +9,7 @@ import (
 	"github.com/caseymrm/menuet"
 )
 
+const appVersion = "0.0.3"
 const boltIconOutline = "bolt.png"
 const boltIconFilled = "bolt-filled.png"
 
@@ -55,8 +56,13 @@ func menuItems() []menuet.MenuItem {
 
 	items := []menuet.MenuItem{}
 	items = append(items, menuet.MenuItem{
-		Text:     "Low Power Mode",
-		FontSize: 15,
+		Text:     fmt.Sprintf("Galvani (v%s)", appVersion),
+		FontSize: 12,
+	})
+
+	items = append(items, menuet.MenuItem{
+		Text:     fmt.Sprintf("Low Power Mode"),
+		FontSize: 12,
 	})
 
 	items = append(items, menuet.MenuItem{
@@ -120,7 +126,7 @@ func main() {
 	app.Name = "Galvani"
 	app.Label = "com.github.theden.galvani"
 	app.Children = menuItems
-	app.AutoUpdate.Version = "0.0.3"
+	app.AutoUpdate.Version = appVersion
 	app.AutoUpdate.Repo = "TheDen/galvani"
 	app.RunApplication()
 }
