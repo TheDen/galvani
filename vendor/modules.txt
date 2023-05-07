@@ -1,0 +1,6 @@
+# github.com/caseymrm/askm v1.0.0
+## explicit
+github.com/caseymrm/askm
+# github.com/caseymrm/menuet v1.0.1
+## explicit; go 1.13
+github.com/caseymrm/menuet
