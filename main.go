@@ -120,7 +120,7 @@ func main() {
 	app.Name = "Galvani"
 	app.Label = "com.github.theden.galvani"
 	app.Children = menuItems
-	app.AutoUpdate.Version = "0.0.1"
+	app.AutoUpdate.Version = "0.0.2"
 	app.AutoUpdate.Repo = "TheDen/galvani"
 	app.RunApplication()
 }
