@@ -3,10 +3,14 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/caseymrm/menuet"
 )
+
+const boltIconOutline = "bolt.png"
+const boltIconFilled = "bolt-filled.png"
 
 func runCommand(str string) error {
 	//	script := fmt.Sprintf("set the clipboard to \"%s\"", str)
@@ -20,6 +24,26 @@ func setMenuStatesFalse() {
 	menuet.Defaults().SetBoolean("neverState", false)
 	menuet.Defaults().SetBoolean("batteryOnlyState", false)
 	menuet.Defaults().SetBoolean("powerOnlyState", false)
+}
+
+func setIconState() string {
+	cmd := exec.Command("pmset", "-g")
+	output, err := cmd.Output()
+	if err != nil {
+		return boltIconOutline
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "lowpowermode") {
+			fields := strings.Fields(line)
+			if fields[1] == "1" {
+				return boltIconFilled
+			}
+			return boltIconOutline
+		}
+	}
+	return boltIconOutline
 }
 
 // osascript -e 'do shell script "sudo pmset -a lowpowermode 1" with administrator privileges'
@@ -83,7 +107,7 @@ func menuItems() []menuet.MenuItem {
 func menu() {
 	for {
 		menuet.App().SetMenuState(&menuet.MenuState{
-			Image: "bolt.png",
+			Image: setIconState(),
 		})
 		menuet.App().MenuChanged()
 		time.Sleep(time.Second)
