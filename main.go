@@ -135,9 +135,11 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("💡 Always"),
 		Clicked: func() {
-			setLowPowerMode("sudo pmset -a lowpowermode 1")
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean("alwaysState", true)
+			err := setLowPowerMode("sudo pmset -a lowpowermode 1")
+			if err == nil {
+				setMenuStatesFalse()
+				menuet.Defaults().SetBoolean("alwaysState", true)
+			}
 		},
 		State: alwaysState,
 	})
@@ -145,9 +147,11 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🛑 Never"),
 		Clicked: func() {
-			setLowPowerMode("sudo pmset -a lowpowermode 0")
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean("neverState", true)
+			err := setLowPowerMode("sudo pmset -a lowpowermode 0")
+			if err == nil {
+				setMenuStatesFalse()
+				menuet.Defaults().SetBoolean("neverState", true)
+			}
 		},
 		State: neverState,
 	})
@@ -155,9 +159,11 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🔋 Only on Battery"),
 		Clicked: func() {
-			setLowPowerMode("sudo pmset -a lowpowermode 0; sudo pmset -b lowpowermode 1")
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean("batteryOnlyState", true)
+			err := setLowPowerMode("sudo pmset -a lowpowermode 0; sudo pmset -b lowpowermode 1")
+			if err == nil {
+				setMenuStatesFalse()
+				menuet.Defaults().SetBoolean("batteryOnlyState", true)
+			}
 		},
 		State: batteryOnlyState,
 	})
@@ -165,9 +171,11 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🔌 Only on Power"),
 		Clicked: func() {
-			setLowPowerMode("sudo pmset -a lowpowermode 0; sudo pmset -c lowpowermode 1")
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean("powerOnlyState", true)
+			err := setLowPowerMode("sudo pmset -a lowpowermode 0; sudo pmset -c lowpowermode 1")
+			if err == nil {
+				setMenuStatesFalse()
+				menuet.Defaults().SetBoolean("powerOnlyState", true)
+			}
 		},
 		State: powerOnlyState,
 	})
