@@ -11,7 +11,7 @@ import (
 	"howett.net/plist"
 )
 
-const appVersion = "0.0.6"
+const appVersion = "0.0.7"
 const boltIconOutline = "bolt.png"
 const boltIconFilled = "bolt-filled.png"
 
