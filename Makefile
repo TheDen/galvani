@@ -8,6 +8,7 @@ compile:
 	lipo -create -output Galvani.app/Contents/MacOS/${BINARY_NAME} bin/${BINARY_NAME}-darwin-amd64 bin/${BINARY_NAME}-darwin-arm64
 
 build: compile
+	mkdir -p Galvani.app/Contents/Resources/ || true
 	./generate_icons.sh
 
 run: build
