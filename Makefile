@@ -11,3 +11,7 @@ build: compile
 
 run: build
 	Galvani.app/Contents/MacOS/galvani
+
+release: build compile
+	rm *.dmg
+	create-dmg Galvani.app/
