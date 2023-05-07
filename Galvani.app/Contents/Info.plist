@@ -9,7 +9,7 @@
 	<key>CFBundleName</key>
 	<string>Galvani</string>
 	<key>CFBundleDisplayName</key>
-	<string>Galvani Installer</string>
+	<string>Galvani</string>
 	<key>CFBundleExecutable</key>
 	<string>Galvani</string>
 	<key>CFBundleIconFile</key>
