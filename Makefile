@@ -13,5 +13,6 @@ run: build
 	Galvani.app/Contents/MacOS/galvani
 
 release: build compile
-	rm *.dmg
+	rm *.dmg || true
+	zip -r Galvani.zip Galvani.app
 	create-dmg Galvani.app/
