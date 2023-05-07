@@ -4,3 +4,6 @@ github.com/caseymrm/askm
 # github.com/caseymrm/menuet v1.0.1
 ## explicit; go 1.13
 github.com/caseymrm/menuet
+# howett.net/plist v1.0.0
+## explicit; go 1.12
+howett.net/plist
