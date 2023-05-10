@@ -39,18 +39,18 @@ func getPowerState(plistPath string) (uint64, uint64, error) {
 		return 0, 0, err
 	}
 	defer f.Close()
-	var m map[string]interface{}
+	var config map[string]interface{}
 
 	// decode the plist file into the map
 	decoder := plist.NewDecoder(f)
-	err = decoder.Decode(&m)
+	err = decoder.Decode(&config)
 	if err != nil {
 		return 0, 0, err
 	}
 
 	// extract the LowPowerMode values for Battery and AC
-	batteryLowPowerMode := m["Battery Power"].(map[string]interface{})["LowPowerMode"].(uint64)
-	acLowPowerMode := m["AC Power"].(map[string]interface{})["LowPowerMode"].(uint64)
+	batteryLowPowerMode := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(uint64)
+	acLowPowerMode := config["AC Power"].(map[string]interface{})["LowPowerMode"].(uint64)
 
 	return acLowPowerMode, batteryLowPowerMode, nil
 }
@@ -61,7 +61,7 @@ func setLowPowerMode(str string) error {
 	return err
 }
 
-func checkStateAtStartup() {
+func checkLowPowerState(hardwareUUID string) {
 	hardwareUUID, err := getHardwareUUID()
 	if err != nil {
 		return
@@ -159,7 +159,7 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🔋 Only on Battery"),
 		Clicked: func() {
-			err := setLowPowerMode("sudo pmset -a lowpowermode 0; sudo pmset -b lowpowermode 1")
+			err := setLowPowerMode("sudo pmset -c lowpowermode 0")
 			if err == nil {
 				setMenuStatesFalse()
 				menuet.Defaults().SetBoolean("batteryOnlyState", true)
@@ -171,7 +171,7 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🔌 Only on Power"),
 		Clicked: func() {
-			err := setLowPowerMode("sudo pmset -a lowpowermode 0; sudo pmset -c lowpowermode 1")
+			err := setLowPowerMode("sudo pmset -b lowpowermode 0")
 			if err == nil {
 				setMenuStatesFalse()
 				menuet.Defaults().SetBoolean("powerOnlyState", true)
@@ -184,7 +184,15 @@ func menuItems() []menuet.MenuItem {
 }
 
 func menu() {
+	skipPlistCheck := false
+	hardwareUUID, err := getHardwareUUID()
+	if err != nil {
+		skipPlistCheck = true
+	}
 	for {
+		if !skipPlistCheck {
+			checkLowPowerState(hardwareUUID)
+		}
 		menuet.App().SetMenuState(&menuet.MenuState{
 			Image: setIconState(),
 		})
@@ -195,7 +203,6 @@ func menu() {
 
 func main() {
 	go menu()
-	checkStateAtStartup()
 	app := menuet.App()
 	app.Name = "Galvani"
 	app.Label = "com.github.theden.galvani"
