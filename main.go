@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,28 +35,6 @@ func getHardwareUUID() (string, error) {
 	return "", fmt.Errorf("Hardware UUID not found")
 }
 
-func getPowerState(plistPath string) (uint64, uint64, error) {
-	f, err := os.Open(plistPath)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer f.Close()
-	var config map[string]interface{}
-
-	// decode the plist file into the map
-	decoder := plist.NewDecoder(f)
-	err = decoder.Decode(&config)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	// extract the LowPowerMode values for Battery and AC
-	batteryLowPowerMode := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(uint64)
-	acLowPowerMode := config["AC Power"].(map[string]interface{})["LowPowerMode"].(uint64)
-
-	return acLowPowerMode, batteryLowPowerMode, nil
-}
-
 func setLowPowerMode(str string) error {
 	cmd := exec.Command("/usr/bin/osascript", "-e", fmt.Sprintf("do shell script \"%s\" with prompt \"Galvani is trying to update battery prefrences\" with administrator privileges", str))
 	err := cmd.Run()
@@ -64,27 +42,54 @@ func setLowPowerMode(str string) error {
 }
 
 func checkLowPowerState(hardwareUUID string) {
-	hardwareUUID, err := getHardwareUUID()
-	if err != nil {
-		return
-	}
+	fmt.Println(hardwareUUID)
 	plistPath := fmt.Sprintf("/Library/Preferences/com.apple.PowerManagement.%s.plist", hardwareUUID)
-	acLowPowerMode, batteryLowPowerMode, err := getPowerState(plistPath)
-	if err != nil {
-		return
-	}
-	if acLowPowerMode == 1 && batteryLowPowerMode == 1 {
-		setMenuStatesFalse()
-		menuet.Defaults().SetBoolean("alwaysState", true)
-	} else if acLowPowerMode == 0 && batteryLowPowerMode == 0 {
-		setMenuStatesFalse()
-		menuet.Defaults().SetBoolean("neverState", true)
-	} else if acLowPowerMode == 0 && batteryLowPowerMode == 1 {
-		setMenuStatesFalse()
-		menuet.Defaults().SetBoolean("batteryOnlyState", true)
-	} else if acLowPowerMode == 1 && batteryLowPowerMode == 0 {
-		setMenuStatesFalse()
-		menuet.Defaults().SetBoolean("powerOnlyState", true)
+
+	for {
+		cmd := exec.Command("defaults", "read", plistPath)
+		out, err := cmd.Output()
+		if err != nil {
+			fmt.Println("Command execution error:", err)
+			continue
+		}
+
+		var config map[string]interface{}
+		_, err = plist.Unmarshal(out, &config)
+		if err != nil {
+			fmt.Println("Failed to decode plist:", err)
+			continue
+		}
+
+		// extract the LowPowerMode values for Battery and AC
+		batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
+		batteryLowPowerMode, err := strconv.ParseUint(batteryLowPowerModeStr, 10, 64)
+		if err != nil {
+			fmt.Println("Failed to parse Battery Power LowPowerMode:", err)
+			continue
+		}
+
+		acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
+		acLowPowerMode, err := strconv.ParseUint(acLowPowerModeStr, 10, 64)
+		if err != nil {
+			fmt.Println("Failed to parse AC Power LowPowerMode:", err)
+			continue
+		}
+
+		if acLowPowerMode == 1 && batteryLowPowerMode == 1 {
+			setMenuStatesFalse()
+			menuet.Defaults().SetBoolean("alwaysState", true)
+		} else if acLowPowerMode == 0 && batteryLowPowerMode == 0 {
+			setMenuStatesFalse()
+			menuet.Defaults().SetBoolean("neverState", true)
+		} else if acLowPowerMode == 0 && batteryLowPowerMode == 1 {
+			setMenuStatesFalse()
+			menuet.Defaults().SetBoolean("batteryOnlyState", true)
+		} else if acLowPowerMode == 1 && batteryLowPowerMode == 0 {
+			setMenuStatesFalse()
+			menuet.Defaults().SetBoolean("powerOnlyState", true)
+		}
+
+		time.Sleep(time.Second)
 	}
 }
 
@@ -161,7 +166,7 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🔋 Only on Battery"),
 		Clicked: func() {
-			err := setLowPowerMode("sudo pmset -c lowpowermode 0")
+			err := setLowPowerMode("sudo pmset -c lowpowermode 0; sudo pmset -b lowpowermode 1")
 			if err == nil {
 				setMenuStatesFalse()
 				menuet.Defaults().SetBoolean("batteryOnlyState", true)
@@ -173,7 +178,7 @@ func menuItems() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text: fmt.Sprintf("🔌 Only on Power"),
 		Clicked: func() {
-			err := setLowPowerMode("sudo pmset -b lowpowermode 0")
+			err := setLowPowerMode("sudo pmset -c lowpowermode 1; sudo pmset -b lowpowermode 0")
 			if err == nil {
 				setMenuStatesFalse()
 				menuet.Defaults().SetBoolean("powerOnlyState", true)
@@ -186,15 +191,8 @@ func menuItems() []menuet.MenuItem {
 }
 
 func menu() {
-	skipPlistCheck := false
-	hardwareUUID, err := getHardwareUUID()
-	if err != nil {
-		skipPlistCheck = true
-	}
+
 	for {
-		if !skipPlistCheck {
-			checkLowPowerState(hardwareUUID)
-		}
 		menuet.App().SetMenuState(&menuet.MenuState{
 			Image: setIconState(),
 		})
@@ -205,6 +203,11 @@ func menu() {
 
 func main() {
 	go menu()
+	hardwareUUID, err := getHardwareUUID()
+	if err == nil {
+		go checkLowPowerState(hardwareUUID)
+	}
+
 	app := menuet.App()
 	app.Name = "Galvani"
 	app.Label = "com.github.theden.galvani"
