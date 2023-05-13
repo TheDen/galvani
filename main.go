@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	appVersion      = "0.0.9"
+	appVersion      = "0.1.0"
 	boltIconOutline = "bolt.png"
 	boltIconFilled  = "bolt-filled.png"
 )
