@@ -3,7 +3,7 @@
 icon_name="icon.png"
 output_path="icon.iconset"
 cd "$(dirname "${0}")" || exit
-rm -rf "$(output_path)/*" || true
+rm -rf "$(output_path)" || true
 mkdir -p "${output_path}"
 
 for size in 16 32 64 128 256 512 1024; do
