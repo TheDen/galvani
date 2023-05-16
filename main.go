@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -43,7 +44,7 @@ func setLowPowerMode(str string) error {
 }
 
 func updateLowPowerStateMenu(hardwareUUID string) {
-	fmt.Println(hardwareUUID)
+	log.Printf("Hardware UUID is %s\n", hardwareUUID)
 	plistPath := fmt.Sprintf("/Library/Preferences/com.apple.PowerManagement.%s.plist", hardwareUUID)
 	currentState := ""
 
@@ -51,14 +52,14 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 		cmd := exec.Command("defaults", "read", plistPath)
 		out, err := cmd.Output()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			log.Println(err)
 			continue
 		}
 
 		var config map[string]interface{}
 		_, err = plist.Unmarshal(out, &config)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			log.Println(err)
 			continue
 		}
 
@@ -66,14 +67,14 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 		batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
 		batteryLowPowerMode, err := strconv.ParseUint(batteryLowPowerModeStr, 10, 64)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			log.Println(err)
 			continue
 		}
 
 		acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
 		acLowPowerMode, err := strconv.ParseUint(acLowPowerModeStr, 10, 64)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			log.Println(err)
 			continue
 		}
 
@@ -90,7 +91,7 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 		if state != currentState {
 			setMenuStatesFalse()
 			menuet.Defaults().SetBoolean(state, true)
-			fmt.Printf("updated state to %s\n", state)
+			log.Printf("Updated state from %s to %s\n", currentState, state)
 			currentState = state
 		}
 		time.Sleep(time.Second)
@@ -101,7 +102,7 @@ func updateCurrentState(currentIconState string) string {
 	cmd := exec.Command("pmset", "-g")
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Println(err)
 		return currentIconState
 	}
 
