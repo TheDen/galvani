@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -34,7 +35,7 @@ func getHardwareUUID() (string, error) {
 			return uuid, nil
 		}
 	}
-	return "", fmt.Errorf("Hardware UUID not found")
+	return "", errors.New("hardware UUID not found")
 }
 
 func setLowPowerMode(str string) error {
@@ -86,7 +87,7 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 		}
 
 		// Get the state for the current condition
-		state, _ := states[[2]uint64{acLowPowerMode, batteryLowPowerMode}]
+		state := states[[2]uint64{acLowPowerMode, batteryLowPowerMode}]
 		// Only update if state has changed
 		if state != currentState {
 			setMenuStatesFalse()
@@ -146,7 +147,7 @@ func menuItems() []menuet.MenuItem {
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("💡 Always"),
+		Text: "💡 Always",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 1")
 			if err == nil {
@@ -158,7 +159,7 @@ func menuItems() []menuet.MenuItem {
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("🛑 Never"),
+		Text: "🛑 Never",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 0")
 			if err == nil {
@@ -170,7 +171,7 @@ func menuItems() []menuet.MenuItem {
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("🔋 Only on Battery"),
+		Text: "🔋 Only on Battery",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 0; sudo pmset -b lowpowermode 1")
 			if err == nil {
@@ -182,7 +183,7 @@ func menuItems() []menuet.MenuItem {
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("🔌 Only on Power"),
+		Text: "🔌 Only on Power",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 1; sudo pmset -b lowpowermode 0")
 			if err == nil {
