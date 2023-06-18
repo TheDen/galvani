@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -19,6 +20,44 @@ const (
 	boltIconFilled  = "bolt-filled.png"
 )
 
+type BatteryState uint8
+
+const (
+	ALWAYS BatteryState = iota
+	NEVER
+	BATTERY_ONLY
+	POWER_ONLY
+)
+
+func (b BatteryState) String() string {
+	switch b {
+	case ALWAYS:
+		return "alwaysState"
+	case NEVER:
+		return "neverState"
+	case BATTERY_ONLY:
+		return "batteryOnlyState"
+	case POWER_ONLY:
+		return "powerOnlyState"
+	default:
+		return "Invalid state"
+	}
+}
+
+func getBatteryStates() []BatteryState {
+	return []BatteryState{ALWAYS, NEVER, BATTERY_ONLY, POWER_ONLY}
+}
+
+func getStateFromCondition(ac bool, battery bool) BatteryState {
+	states := map[[2]bool]BatteryState{
+		{true, true}:   ALWAYS,
+		{false, false}: NEVER,
+		{false, true}:  BATTERY_ONLY,
+		{true, false}:  POWER_ONLY,
+	}
+	return BatteryState(states[[2]bool{ac, battery}])
+}
+
 var lowPowerMode = ""
 
 func getHardwareUUID() (string, error) {
@@ -34,7 +73,7 @@ func getHardwareUUID() (string, error) {
 			return uuid, nil
 		}
 	}
-	return "", fmt.Errorf("Hardware UUID not found")
+	return "", errors.New("hardware UUID not found")
 }
 
 func setLowPowerMode(str string) error {
@@ -46,7 +85,7 @@ func setLowPowerMode(str string) error {
 func updateLowPowerStateMenu(hardwareUUID string) {
 	log.Printf("Hardware UUID is %s\n", hardwareUUID)
 	plistPath := fmt.Sprintf("/Library/Preferences/com.apple.PowerManagement.%s.plist", hardwareUUID)
-	currentState := ""
+	var currentState BatteryState
 
 	for {
 		cmd := exec.Command("defaults", "read", plistPath)
@@ -65,32 +104,25 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 
 		// extract the LowPowerMode values for Battery and AC
 		batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
-		batteryLowPowerMode, err := strconv.ParseUint(batteryLowPowerModeStr, 10, 64)
+		batteryLowPowerMode, err := strconv.ParseBool(batteryLowPowerModeStr)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
 		acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
-		acLowPowerMode, err := strconv.ParseUint(acLowPowerModeStr, 10, 64)
+		acLowPowerMode, err := strconv.ParseBool(acLowPowerModeStr)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		states := map[[2]uint64]string{
-			{1, 1}: "alwaysState",
-			{0, 0}: "neverState",
-			{0, 1}: "batteryOnlyState",
-			{1, 0}: "powerOnlyState",
-		}
-
 		// Get the state for the current condition
-		state, _ := states[[2]uint64{acLowPowerMode, batteryLowPowerMode}]
+		state := getStateFromCondition(acLowPowerMode, batteryLowPowerMode)
 		// Only update if state has changed
 		if state != currentState {
 			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean(state, true)
+			menuet.Defaults().SetBoolean(state.String(), true)
 			log.Printf("Updated state from %s to %s\n", currentState, state)
 			currentState = state
 		}
@@ -122,17 +154,16 @@ func updateCurrentState(currentIconState string) string {
 }
 
 func setMenuStatesFalse() {
-	keys := []string{"alwaysState", "neverState", "batteryOnlyState", "powerOnlyState"}
-	for _, key := range keys {
-		menuet.Defaults().SetBoolean(key, false)
+	for _, key := range getBatteryStates() {
+		menuet.Defaults().SetBoolean(key.String(), false)
 	}
 }
 
 func menuItems() []menuet.MenuItem {
-	alwaysState := menuet.Defaults().Boolean("alwaysState")
-	neverState := menuet.Defaults().Boolean("neverState")
-	batteryOnlyState := menuet.Defaults().Boolean("batteryOnlyState")
-	powerOnlyState := menuet.Defaults().Boolean("powerOnlyState")
+	alwaysState := menuet.Defaults().Boolean(ALWAYS.String())
+	neverState := menuet.Defaults().Boolean(NEVER.String())
+	batteryOnlyState := menuet.Defaults().Boolean(BATTERY_ONLY.String())
+	powerOnlyState := menuet.Defaults().Boolean(POWER_ONLY.String())
 
 	items := []menuet.MenuItem{}
 	items = append(items, menuet.MenuItem{
@@ -146,48 +177,48 @@ func menuItems() []menuet.MenuItem {
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("💡 Always"),
+		Text: "💡 Always",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 1")
 			if err == nil {
 				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean("alwaysState", true)
+				menuet.Defaults().SetBoolean(ALWAYS.String(), true)
 			}
 		},
 		State: alwaysState,
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("🛑 Never"),
+		Text: "🛑 Never",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 0")
 			if err == nil {
 				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean("neverState", true)
+				menuet.Defaults().SetBoolean(NEVER.String(), true)
 			}
 		},
 		State: neverState,
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("🔋 Only on Battery"),
+		Text: "🔋 Only on Battery",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 0; sudo pmset -b lowpowermode 1")
 			if err == nil {
 				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean("batteryOnlyState", true)
+				menuet.Defaults().SetBoolean(BATTERY_ONLY.String(), true)
 			}
 		},
 		State: batteryOnlyState,
 	})
 
 	items = append(items, menuet.MenuItem{
-		Text: fmt.Sprintf("🔌 Only on Power"),
+		Text: "🔌 Only on Power",
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 1; sudo pmset -b lowpowermode 0")
 			if err == nil {
 				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean("powerOnlyState", true)
+				menuet.Defaults().SetBoolean(POWER_ONLY.String(), true)
 			}
 		},
 		State: powerOnlyState,
