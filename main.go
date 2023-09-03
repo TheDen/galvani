@@ -98,6 +98,7 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 	var currentState BatteryState
 	tick := time.Tick(1 * time.Second)
 
+	//lint:ignore S1000 ingore
 	for {
 		select {
 		case <-tick:
@@ -244,6 +245,7 @@ func menu() {
 	currentIconState := ""
 	newIconState := ""
 	tick := time.Tick(1 * time.Second)
+	//lint:ignore S1000 ingore
 	for {
 		select {
 		case <-tick:
