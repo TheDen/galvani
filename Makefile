@@ -1,6 +1,10 @@
 .DEFAULT_GOAL := build
 BINARY_NAME=galvani
 
+mod:
+	go mod tidy
+	go mod vendor
+
 compile:
 	mkdir -p Galvani.app/Contents/MacOS/ || true
 	CGO_ENABLED=1 GOARCH=amd64 GOOS=darwin go build -ldflags="-s -w" -v -o ./bin/${BINARY_NAME}-darwin-amd64 main.go
