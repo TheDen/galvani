@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	appVersion      = "0.1.2"
+	appVersion      = "0.1.3"
 	boltIconOutline = "bolt.png"
 	boltIconFilled  = "bolt-filled.png"
 )
@@ -77,56 +77,69 @@ func getHardwareUUID() (string, error) {
 }
 
 func setLowPowerMode(str string) error {
-	cmd := exec.Command("/usr/bin/osascript", "-e", fmt.Sprintf("do shell script \"%s\" with prompt \"Galvani is trying to update battery prefrences\" with administrator privileges", str))
+	cmd := exec.Command(
+		"/usr/bin/osascript",
+		"-e",
+		fmt.Sprintf(
+			"do shell script \"%s\" with prompt \"Galvani is trying to update battery prefrences\" with administrator privileges",
+			str,
+		),
+	)
 	err := cmd.Run()
 	return err
 }
 
 func updateLowPowerStateMenu(hardwareUUID string) {
 	log.Printf("Hardware UUID is %s\n", hardwareUUID)
-	plistPath := fmt.Sprintf("/Library/Preferences/com.apple.PowerManagement.%s.plist", hardwareUUID)
+	plistPath := fmt.Sprintf(
+		"/Library/Preferences/com.apple.PowerManagement.%s.plist",
+		hardwareUUID,
+	)
 	var currentState BatteryState
+	tick := time.Tick(1 * time.Second)
 
 	for {
-		cmd := exec.Command("defaults", "read", plistPath)
-		out, err := cmd.Output()
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+		select {
+		case <-tick:
+			cmd := exec.Command("defaults", "read", plistPath)
+			out, err := cmd.Output()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-		var config map[string]interface{}
-		_, err = plist.Unmarshal(out, &config)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+			var config map[string]interface{}
+			_, err = plist.Unmarshal(out, &config)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-		// extract the LowPowerMode values for Battery and AC
-		batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
-		batteryLowPowerMode, err := strconv.ParseBool(batteryLowPowerModeStr)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+			// extract the LowPowerMode values for Battery and AC
+			batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
+			batteryLowPowerMode, err := strconv.ParseBool(batteryLowPowerModeStr)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-		acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
-		acLowPowerMode, err := strconv.ParseBool(acLowPowerModeStr)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+			acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
+			acLowPowerMode, err := strconv.ParseBool(acLowPowerModeStr)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-		// Get the state for the current condition
-		state := getStateFromCondition(acLowPowerMode, batteryLowPowerMode)
-		// Only update if state has changed
-		if state != currentState {
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean(state.String(), true)
-			log.Printf("Updated state from %s to %s\n", currentState, state)
-			currentState = state
+			// Get the state for the current condition
+			state := getStateFromCondition(acLowPowerMode, batteryLowPowerMode)
+			// Only update if state has changed
+			if state != currentState {
+				setMenuStatesFalse()
+				menuet.Defaults().SetBoolean(state.String(), true)
+				log.Printf("Updated state from %s to %s\n", currentState, state)
+				currentState = state
+			}
 		}
-		time.Sleep(time.Second)
 	}
 }
 
@@ -230,16 +243,19 @@ func menuItems() []menuet.MenuItem {
 func menu() {
 	currentIconState := ""
 	newIconState := ""
+	tick := time.Tick(1 * time.Second)
 	for {
-		newIconState = updateCurrentState(currentIconState)
-		if currentIconState != newIconState {
-			menuet.App().SetMenuState(&menuet.MenuState{
-				Image: newIconState,
-			})
-			menuet.App().MenuChanged()
-			currentIconState = newIconState
+		select {
+		case <-tick:
+			newIconState = updateCurrentState(currentIconState)
+			if currentIconState != newIconState {
+				menuet.App().SetMenuState(&menuet.MenuState{
+					Image: newIconState,
+				})
+				menuet.App().MenuChanged()
+				currentIconState = newIconState
+			}
 		}
-		time.Sleep(time.Second)
 	}
 }
 
