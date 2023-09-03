@@ -1,6 +1,6 @@
 module github.com/TheDen/galvani
 
-go 1.20
+go 1.21
 
 require (
 	github.com/caseymrm/menuet v1.0.1
