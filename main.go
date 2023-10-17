@@ -59,6 +59,7 @@ func getStateFromCondition(ac bool, battery bool) BatteryState {
 }
 
 var lowPowerMode = ""
+var inChan = make(chan BatteryState)
 
 func getHardwareUUID() (string, error) {
 	cmd := exec.Command("system_profiler", "SPHardwareDataType")
@@ -96,7 +97,7 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 		hardwareUUID,
 	)
 	var currentState BatteryState
-	tick := time.Tick(1 * time.Second)
+	tick := time.Tick(15 * time.Second)
 
 	for range tick {
 		cmd := exec.Command("defaults", "read", plistPath)
@@ -132,20 +133,19 @@ func updateLowPowerStateMenu(hardwareUUID string) {
 		state := getStateFromCondition(acLowPowerMode, batteryLowPowerMode)
 		// Only update if state has changed
 		if state != currentState {
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean(state.String(), true)
+			inChan <- state
 			log.Printf("Updated state from %s to %s\n", currentState, state)
 			currentState = state
 		}
 	}
 }
 
-func updateCurrentState(currentIconState string) string {
+func getIcon() (string, error) {
 	cmd := exec.Command("pmset", "-g")
 	output, err := cmd.Output()
 	if err != nil {
 		log.Println(err)
-		return currentIconState
+		return "", err
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -154,13 +154,13 @@ func updateCurrentState(currentIconState string) string {
 			fields := strings.Fields(line)
 			if fields[1] == "1" {
 				lowPowerMode = "ON"
-				return boltIconFilled
+				return boltIconFilled, nil
 			}
 			lowPowerMode = "OFF"
-			return boltIconOutline
+			return boltIconOutline, nil
 		}
 	}
-	return currentIconState
+	return "", errors.New("low power mode not found")
 }
 
 func setMenuStatesFalse() {
@@ -191,8 +191,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 1")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(ALWAYS.String(), true)
+				inChan <- ALWAYS
 			}
 		},
 		State: alwaysState,
@@ -203,8 +202,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 0")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(NEVER.String(), true)
+				inChan <- NEVER
 			}
 		},
 		State: neverState,
@@ -215,8 +213,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 0; sudo pmset -b lowpowermode 1")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(BATTERY_ONLY.String(), true)
+				inChan <- BATTERY_ONLY
 			}
 		},
 		State: batteryOnlyState,
@@ -227,8 +224,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 1; sudo pmset -b lowpowermode 0")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(POWER_ONLY.String(), true)
+				inChan <- POWER_ONLY
 			}
 		},
 		State: powerOnlyState,
@@ -238,18 +234,18 @@ func menuItems() []menuet.MenuItem {
 }
 
 func menu() {
-	currentIconState := ""
-	newIconState := ""
-	tick := time.Tick(1 * time.Second)
-	for range tick {
-		newIconState = updateCurrentState(currentIconState)
-		if currentIconState != newIconState {
-			menuet.App().SetMenuState(&menuet.MenuState{
-				Image: newIconState,
-			})
-			menuet.App().MenuChanged()
-			currentIconState = newIconState
+	for state := range inChan {
+		setMenuStatesFalse()
+		menuet.Defaults().SetBoolean(state.String(), true)
+		icon, err := getIcon()
+		if err != nil {
+			log.Println(err)
+			continue
 		}
+		menuet.App().SetMenuState(&menuet.MenuState{
+			Image: icon,
+		})
+		menuet.App().MenuChanged()
 	}
 }
 
