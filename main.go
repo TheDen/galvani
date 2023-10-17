@@ -59,6 +59,8 @@ func getStateFromCondition(ac bool, battery bool) BatteryState {
 }
 
 var lowPowerMode = ""
+var inChan = make(chan BatteryState)
+var currentState BatteryState
 
 func getHardwareUUID() (string, error) {
 	cmd := exec.Command("system_profiler", "SPHardwareDataType")
@@ -89,63 +91,78 @@ func setLowPowerMode(str string) error {
 	return err
 }
 
-func updateLowPowerStateMenu(hardwareUUID string) {
+func getState(plistPath string) (BatteryState, error) {
+	cmd := exec.Command("defaults", "read", plistPath)
+	out, err := cmd.Output()
+	if err != nil {
+		return NEVER, err
+	}
+
+	var config map[string]interface{}
+	_, err = plist.Unmarshal(out, &config)
+	if err != nil {
+		return NEVER, err
+	}
+
+	// extract the LowPowerMode values for Battery and AC
+	batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
+	batteryLowPowerMode, err := strconv.ParseBool(batteryLowPowerModeStr)
+	if err != nil {
+		return NEVER, err
+	}
+
+	acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
+	acLowPowerMode, err := strconv.ParseBool(acLowPowerModeStr)
+	if err != nil {
+		return NEVER, err
+	}
+
+	// Get the state for the current condition
+	state := getStateFromCondition(acLowPowerMode, batteryLowPowerMode)
+	return state, nil
+}
+
+func pollLowPowerState(hardwareUUID string) {
 	log.Printf("Hardware UUID is %s\n", hardwareUUID)
 	plistPath := fmt.Sprintf(
 		"/Library/Preferences/com.apple.PowerManagement.%s.plist",
 		hardwareUUID,
 	)
-	var currentState BatteryState
-	tick := time.Tick(1 * time.Second)
+	var err error
+	currentState, err = getState(plistPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	err = setMenu(currentState)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	tick := time.Tick(15 * time.Second)
 
 	for range tick {
-		cmd := exec.Command("defaults", "read", plistPath)
-		out, err := cmd.Output()
+		state, err := getState(plistPath)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		var config map[string]interface{}
-		_, err = plist.Unmarshal(out, &config)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		// extract the LowPowerMode values for Battery and AC
-		batteryLowPowerModeStr := config["Battery Power"].(map[string]interface{})["LowPowerMode"].(string)
-		batteryLowPowerMode, err := strconv.ParseBool(batteryLowPowerModeStr)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		acLowPowerModeStr := config["AC Power"].(map[string]interface{})["LowPowerMode"].(string)
-		acLowPowerMode, err := strconv.ParseBool(acLowPowerModeStr)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		// Get the state for the current condition
-		state := getStateFromCondition(acLowPowerMode, batteryLowPowerMode)
 		// Only update if state has changed
 		if state != currentState {
-			setMenuStatesFalse()
-			menuet.Defaults().SetBoolean(state.String(), true)
+			inChan <- state
 			log.Printf("Updated state from %s to %s\n", currentState, state)
 			currentState = state
 		}
 	}
 }
 
-func updateCurrentState(currentIconState string) string {
+func getIcon() (string, error) {
 	cmd := exec.Command("pmset", "-g")
 	output, err := cmd.Output()
 	if err != nil {
 		log.Println(err)
-		return currentIconState
+		return "", err
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -154,13 +171,13 @@ func updateCurrentState(currentIconState string) string {
 			fields := strings.Fields(line)
 			if fields[1] == "1" {
 				lowPowerMode = "ON"
-				return boltIconFilled
+				return boltIconFilled, nil
 			}
 			lowPowerMode = "OFF"
-			return boltIconOutline
+			return boltIconOutline, nil
 		}
 	}
-	return currentIconState
+	return "", errors.New("low power mode not found")
 }
 
 func setMenuStatesFalse() {
@@ -191,8 +208,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 1")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(ALWAYS.String(), true)
+				inChan <- ALWAYS
 			}
 		},
 		State: alwaysState,
@@ -203,8 +219,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -a lowpowermode 0")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(NEVER.String(), true)
+				inChan <- NEVER
 			}
 		},
 		State: neverState,
@@ -215,8 +230,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 0; sudo pmset -b lowpowermode 1")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(BATTERY_ONLY.String(), true)
+				inChan <- BATTERY_ONLY
 			}
 		},
 		State: batteryOnlyState,
@@ -227,8 +241,7 @@ func menuItems() []menuet.MenuItem {
 		Clicked: func() {
 			err := setLowPowerMode("sudo pmset -c lowpowermode 1; sudo pmset -b lowpowermode 0")
 			if err == nil {
-				setMenuStatesFalse()
-				menuet.Defaults().SetBoolean(POWER_ONLY.String(), true)
+				inChan <- POWER_ONLY
 			}
 		},
 		State: powerOnlyState,
@@ -237,18 +250,26 @@ func menuItems() []menuet.MenuItem {
 	return items
 }
 
+func setMenu(state BatteryState) error {
+	setMenuStatesFalse()
+	menuet.Defaults().SetBoolean(state.String(), true)
+	icon, err := getIcon()
+	if err != nil {
+		return err
+	}
+	menuet.App().SetMenuState(&menuet.MenuState{
+		Image: icon,
+	})
+	menuet.App().MenuChanged()
+	currentState = state
+	return nil
+}
+
 func menu() {
-	currentIconState := ""
-	newIconState := ""
-	tick := time.Tick(1 * time.Second)
-	for range tick {
-		newIconState = updateCurrentState(currentIconState)
-		if currentIconState != newIconState {
-			menuet.App().SetMenuState(&menuet.MenuState{
-				Image: newIconState,
-			})
-			menuet.App().MenuChanged()
-			currentIconState = newIconState
+	for state := range inChan {
+		err := setMenu(state)
+		if err != nil {
+			log.Println(err)
 		}
 	}
 }
@@ -260,7 +281,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	go updateLowPowerStateMenu(hardwareUUID)
+	go pollLowPowerState(hardwareUUID)
 
 	app := menuet.App()
 	app.Name = "Galvani"
