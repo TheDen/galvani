@@ -61,6 +61,7 @@ func getStateFromCondition(ac bool, battery bool) BatteryState {
 var lowPowerMode = ""
 var inChan = make(chan BatteryState)
 var currentState BatteryState
+var currentIcon string
 
 func getHardwareUUID() (string, error) {
 	cmd := exec.Command("system_profiler", "SPHardwareDataType")
@@ -153,6 +154,16 @@ func pollLowPowerState(hardwareUUID string) {
 			inChan <- state
 			log.Printf("Updated state from %s to %s\n", currentState, state)
 			currentState = state
+			continue
+		}
+
+		icon, err := getIcon()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if icon != currentIcon {
+			setIcon(icon)
 		}
 	}
 }
@@ -250,6 +261,14 @@ func menuItems() []menuet.MenuItem {
 	return items
 }
 
+func setIcon(icon string) {
+	menuet.App().SetMenuState(&menuet.MenuState{
+		Image: icon,
+	})
+	menuet.App().MenuChanged()
+	currentIcon = icon
+}
+
 func setMenu(state BatteryState) error {
 	setMenuStatesFalse()
 	menuet.Defaults().SetBoolean(state.String(), true)
@@ -257,10 +276,7 @@ func setMenu(state BatteryState) error {
 	if err != nil {
 		return err
 	}
-	menuet.App().SetMenuState(&menuet.MenuState{
-		Image: icon,
-	})
-	menuet.App().MenuChanged()
+	setIcon(icon)
 	currentState = state
 	return nil
 }
