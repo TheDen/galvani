@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	appVersion      = "0.2.1"
+	appVersion      = "0.2.2"
 	boltIconOutline = "bolt.png"
 	boltIconFilled  = "bolt-filled.png"
 )
