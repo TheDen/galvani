@@ -305,5 +305,6 @@ func main() {
 	app.Children = menuItems
 	app.AutoUpdate.Version = appVersion
 	app.AutoUpdate.Repo = "TheDen/galvani"
+	// Hook up the graceful shutdown handles
 	app.RunApplication()
 }

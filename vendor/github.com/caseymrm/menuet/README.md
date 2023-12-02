@@ -1,4 +1,5 @@
 # Menuet
+
 Golang library to create menubar apps- programs that live only in OSX's NSStatusBar
 
 ## Development Status
@@ -6,6 +7,7 @@ Golang library to create menubar apps- programs that live only in OSX's NSStatus
 Under active development. API still changing rapidly.
 
 ## Installation
+
 menuet requires OS X.
 
 `go get github.com/caseymrm/menuet`
@@ -16,20 +18,19 @@ https://godoc.org/github.com/caseymrm/menuet
 
 ## Apps built with Menuet
 
-* [Why Awake?](https://github.com/caseymrm/whyawake) - shows why your Mac can't sleep, and lets you force it awake
+- [Why Awake?](https://github.com/caseymrm/whyawake) - shows why your Mac can't sleep, and lets you force it awake
 
 <img src="https://github.com/caseymrm/whyawake/raw/master/static/cansleep.png" width="25%"/> <img src="https://github.com/caseymrm/whyawake/raw/master/static/cantsleep.png" width="25%"/> <img src="https://github.com/caseymrm/whyawake/raw/master/static/prevented.png" width="25%"/>
 
-
-* [Not a Fan](https://github.com/caseymrm/notafan) - shows your Mac's temperature and fan speed, notifies you when your CPU is being throttled due to excessive heat
+- [Not a Fan](https://github.com/caseymrm/notafan) - shows your Mac's temperature and fan speed, notifies you when your CPU is being throttled due to excessive heat
 
 <img src="https://github.com/caseymrm/notafan/raw/master/notafan.png" width="25%"/> <img src="https://github.com/caseymrm/notafan/raw/master/throttled.png" width="25%"/> <img src="https://github.com/caseymrm/notafan/raw/master/notthrottled.png" width="25%"/>
 
-* [Traytter](https://github.com/caseymrm/traytter) - minimalist Twitter client for following a few users
+- [Traytter](https://github.com/caseymrm/traytter) - minimalist Twitter client for following a few users
 
 <img src="https://github.com/caseymrm/traytter/raw/master/traytter.png" width="50%"/>
 
-* [Hacker News Menuet](https://github.com/unkrich/hackernews-menuet) - easily browse latest Hacker News posts
+- [Hacker News Menuet](https://github.com/unkrich/hackernews-menuet) - easily browse latest Hacker News posts
 
 <img src="https://github.com/unkrich/hackernews-menuet/blob/master/static/screenshot.png" width="50%"/>
 

@@ -13,6 +13,7 @@ package menuet
 */
 import "C"
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"reflect"
@@ -41,14 +42,21 @@ type Application struct {
 	alertChannel          chan AlertClicked
 	currentState          *MenuState
 	nextState             *MenuState
+	hideStartupItem       bool
 	pendingStateChange    bool
 	debounceMutex         sync.Mutex
 	visibleMenuItemsMutex sync.RWMutex
 	visibleMenuItems      map[string]internalItem
+
+	// Used to coordinate graceful shutdown
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 var appInstance *Application
 var appOnce sync.Once
+var shutdownOnce sync.Once
 
 // App returns the application singleton
 func App() *Application {
@@ -79,6 +87,23 @@ func (a *Application) SetMenuState(state *MenuState) {
 // MenuChanged refreshes any open menus
 func (a *Application) MenuChanged() {
 	C.menuChanged()
+}
+
+// GracefulShutdownHandles returns a WaitGroup and Context that can
+// be used to manage graceful shutdown of go resources when the
+// menuabar app is terminated.
+// Use the WaitGroup to track your running goroutines, then shut them
+// down when the context is Done.
+func (a *Application) GracefulShutdownHandles() (*sync.WaitGroup, context.Context) {
+	shutdownOnce.Do(func() {
+		a.ctx, a.cancel = context.WithCancel(context.Background())
+	})
+	return &a.wg, a.ctx
+}
+
+// HideStartup prevents the Start at Login menu item from being displayed
+func (a *Application) HideStartup() {
+	a.hideStartupItem = true
 }
 
 // MenuState represents the title and drop down,
@@ -159,6 +184,11 @@ func notificationRespond(id *C.char, response *C.char) {
 	App().NotificationResponder(C.GoString(id), C.GoString(response))
 }
 
+//export hideStartup
+func hideStartup() bool {
+	return App().hideStartupItem
+}
+
 //export runningAtStartup
 func runningAtStartup() bool {
 	return App().runningAtStartup()
@@ -173,4 +203,12 @@ func toggleStartup() {
 		a.addStartupItem()
 	}
 	go a.sendState(a.currentState)
+}
+
+//export shutdownWait
+func shutdownWait() {
+	if App().cancel != nil {
+		App().cancel()
+	}
+	App().wg.Wait()
 }
