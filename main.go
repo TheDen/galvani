@@ -20,6 +20,9 @@ const (
 	boltIconFilled  = "bolt-filled.png"
 )
 
+var hardwareUUID string
+var plistPath string
+
 type BatteryState uint8
 
 const (
@@ -92,7 +95,7 @@ func setLowPowerMode(str string) error {
 	return err
 }
 
-func getState(plistPath string) (BatteryState, error) {
+func getState() (BatteryState, error) {
 	cmd := exec.Command("defaults", "read", plistPath)
 	out, err := cmd.Output()
 	if err != nil {
@@ -123,27 +126,23 @@ func getState(plistPath string) (BatteryState, error) {
 	return state, nil
 }
 
-func pollLowPowerState(hardwareUUID string) {
-	log.Printf("Hardware UUID is %s\n", hardwareUUID)
-	plistPath := fmt.Sprintf(
-		"/Library/Preferences/com.apple.PowerManagement.%s.plist",
-		hardwareUUID,
-	)
-	var err error
-	currentState, err = getState(plistPath)
+func pollLowPowerState() {
+	// Set initial state
+	currentState, err := getState()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Println(err)
 		os.Exit(1)
 	}
 	err = setMenu(currentState)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Println(err)
 		os.Exit(1)
 	}
-	tick := time.Tick(15 * time.Second)
 
+	// Polling loop
+	tick := time.Tick(15 * time.Second)
 	for range tick {
-		state, err := getState(plistPath)
+		state, err := getState()
 		if err != nil {
 			log.Println(err)
 			continue
@@ -293,11 +292,16 @@ func menu() {
 func main() {
 	go menu()
 	hardwareUUID, err := getHardwareUUID()
+	log.Printf("Hardware UUID is %s\n", hardwareUUID)
+	plistPath = fmt.Sprintf(
+		"/Library/Preferences/com.apple.PowerManagement.%s.plist",
+		hardwareUUID,
+	)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Println(err)
 		os.Exit(1)
 	}
-	go pollLowPowerState(hardwareUUID)
+	go pollLowPowerState()
 
 	app := menuet.App()
 	app.Name = "Galvani"
@@ -305,6 +309,5 @@ func main() {
 	app.Children = menuItems
 	app.AutoUpdate.Version = appVersion
 	app.AutoUpdate.Repo = "TheDen/galvani"
-	// Hook up the graceful shutdown handles
 	app.RunApplication()
 }
