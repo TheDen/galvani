@@ -15,22 +15,25 @@ import (
 )
 
 const (
-	appVersion      = "0.2.3"
-	boltIconOutline = "bolt.png"
-	boltIconFilled  = "bolt-filled.png"
-)
-
-var hardwareUUID string
-var plistPath string
-
-type BatteryState uint8
-
-const (
-	ALWAYS BatteryState = iota
+	appVersion                   = "0.2.3"
+	boltIconOutline              = "bolt.png"
+	boltIconFilled               = "bolt-filled.png"
+	ALWAYS          BatteryState = iota
 	NEVER
 	BATTERY_ONLY
 	POWER_ONLY
 )
+
+var (
+	hardwareUUID string //lint:ignore U1000 false positives
+	plistPath    string
+	lowPowerMode = ""
+	inChan       = make(chan BatteryState)
+	currentState BatteryState //lint:ignore U1000 false positives
+	currentIcon  string
+)
+
+type BatteryState uint8
 
 func (b BatteryState) String() string {
 	switch b {
@@ -60,11 +63,6 @@ func getStateFromCondition(ac bool, battery bool) BatteryState {
 	}
 	return BatteryState(states[[2]bool{ac, battery}])
 }
-
-var lowPowerMode = ""
-var inChan = make(chan BatteryState)
-var currentState BatteryState
-var currentIcon string
 
 func getHardwareUUID() (string, error) {
 	cmd := exec.Command("system_profiler", "SPHardwareDataType")
