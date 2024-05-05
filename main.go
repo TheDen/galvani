@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	appVersion                   = "0.2.3"
+	appVersion                   = "0.2.4"
 	boltIconOutline              = "bolt.png"
 	boltIconFilled               = "bolt-filled.png"
 	ALWAYS          BatteryState = iota
@@ -85,7 +85,7 @@ func setLowPowerMode(str string) error {
 		"/usr/bin/osascript",
 		"-e",
 		fmt.Sprintf(
-			"do shell script \"%s\" with prompt \"Galvani is trying to update battery prefrences\" with administrator privileges",
+			"do shell script \"%s\" with prompt \"Galvani is trying to update battery preferences\" with administrator privileges",
 			str,
 		),
 	)
