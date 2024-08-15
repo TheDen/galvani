@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Australia/Melbourne"
+    groups:
+      go:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
