@@ -3,7 +3,7 @@ module github.com/TheDen/galvani
 go 1.22
 
 require (
-	github.com/caseymrm/menuet v1.0.3
+	github.com/caseymrm/menuet v1.2.0
 	howett.net/plist v1.0.1
 )
 
